@@ -52,9 +52,9 @@ func main() {
 	mux.Handle("/app/", apiCfg.middlewareMetricsInc(
 		http.StripPrefix("/app/", http.FileServer(http.Dir(filepathRoot))),
 	))
-	mux.Handle("/app/assets/", apiCfg.middlewareMetricsInc(
-		http.StripPrefix("/app/assets", http.FileServer(http.Dir("./assets"))),
-	))
+	//mux.Handle("/app/assets/", apiCfg.middlewareMetricsInc(
+	//	http.StripPrefix("/app/assets", http.FileServer(http.Dir("./assets"))),
+	//))
 
 	mux.HandleFunc("GET /metrics", apiCfg.handlerMetrics)
 	mux.HandleFunc("POST /reset", apiCfg.handlerReset)
