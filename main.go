@@ -56,9 +56,9 @@ func main() {
 	//	http.StripPrefix("/app/assets", http.FileServer(http.Dir("./assets"))),
 	//))
 
-	mux.HandleFunc("GET /metrics", apiCfg.handlerMetrics)
-	mux.HandleFunc("POST /reset", apiCfg.handlerReset)
-	mux.HandleFunc("GET /healthz", apiCfg.handleHealth)
+	mux.HandleFunc("GET /api/metrics", apiCfg.handlerMetrics)
+	mux.HandleFunc("POST /api/reset", apiCfg.handlerReset)
+	mux.HandleFunc("GET /api/healthz", apiCfg.handleHealth)
 
 	srv := &http.Server{
 		Addr:    ":" + port,
