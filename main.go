@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -39,6 +40,48 @@ func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (cfg *apiConfig) handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
+	type parameters struct {
+		Body string `json:"body"`
+	}
+	type returnVals struct {
+		Valid bool `json:"valid"`
+	}
+	type errorVals struct {
+		Error string `json:"error"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	params := parameters{}
+	err := decoder.Decode(&params)
+	if err != nil {
+		respondWithError(w, 400, "Something went wrong")
+		return
+	}
+
+	const MaxChirpLenght = 140
+	if len(params.Body) > MaxChirpLenght {
+		respondWithError(w, 400, "Chirp is too long")
+		return
+	}
+	respondWithJSON(w, 200, returnVals{Valid: true})
+}
+
+func respondWithError(w http.ResponseWriter, code int, msg string) {
+	type errorVals struct {
+		Error string `json:"error"`
+	}
+	respondWithJSON(w, code, errorVals{Error: msg})
+
+}
+
+func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	dat, _ := json.Marshal(payload)
+	w.WriteHeader(code)
+	w.Write(dat)
+}
+
 // handleHealth handles the /api/healthz endpoint.
 // func (cfg *apiConfig) handleHealth(w http.ResponseWriter, r *http.Request) {
 // 	w.Header().Set("Content-Type", "text/plain; charset=utf-8") // normal header
@@ -63,6 +106,7 @@ func main() {
 
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
 	mux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
+	mux.HandleFunc("POST /api/validate_chirp", apiCfg.handlerValidateChirp)
 	// mux.HandleFunc("GET /healthz", apiCfg.handleHealth)
 
 	srv := &http.Server{
