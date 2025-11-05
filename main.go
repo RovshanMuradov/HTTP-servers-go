@@ -11,6 +11,7 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 }
 
+// middlewareMetricsInc is a middleware that increments the file server hit counter.
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cfg.fileserverHits.Add(1)
@@ -18,6 +19,7 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 	})
 }
 
+// handlerMetrics handles the /api/metrics endpoint.
 func (cfg *apiConfig) handlerMetrics(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodGet {
@@ -25,21 +27,24 @@ func (cfg *apiConfig) handlerMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Hits: %d", cfg.fileserverHits.Load())
+	html := fmt.Sprintf("<html><body><h1>Welcome, Chirpy Admin</h1><p>Chirpy has been visited %d times!</p></body></html>", cfg.fileserverHits.Load())
+	w.Write([]byte(html))
 }
 
+// handlerReset handles the /api/reset endpoint.
 func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
 	cfg.fileserverHits.Store(0)
 	w.WriteHeader(http.StatusOK)
 }
 
-func (cfg *apiConfig) handleHealth(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8") // normal header
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
-}
+// handleHealth handles the /api/healthz endpoint.
+// func (cfg *apiConfig) handleHealth(w http.ResponseWriter, r *http.Request) {
+// 	w.Header().Set("Content-Type", "text/plain; charset=utf-8") // normal header
+// 	w.WriteHeader(http.StatusOK)
+// 	w.Write([]byte("OK"))
+// }
 
 func main() {
 
@@ -56,9 +61,9 @@ func main() {
 	//	http.StripPrefix("/app/assets", http.FileServer(http.Dir("./assets"))),
 	//))
 
-	mux.HandleFunc("GET /api/metrics", apiCfg.handlerMetrics)
-	mux.HandleFunc("POST /api/reset", apiCfg.handlerReset)
-	mux.HandleFunc("GET /api/healthz", apiCfg.handleHealth)
+	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
+	mux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
+	// mux.HandleFunc("GET /healthz", apiCfg.handleHealth)
 
 	srv := &http.Server{
 		Addr:    ":" + port,
