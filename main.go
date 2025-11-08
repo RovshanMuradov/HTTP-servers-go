@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync/atomic"
 )
 
@@ -45,7 +46,7 @@ func (cfg *apiConfig) handlerValidateChirp(w http.ResponseWriter, r *http.Reques
 		Body string `json:"body"`
 	}
 	type returnVals struct {
-		Valid bool `json:"valid"`
+		CleanedBody string `json:"cleaned_body"`
 	}
 	type errorVals struct {
 		Error string `json:"error"`
@@ -64,7 +65,21 @@ func (cfg *apiConfig) handlerValidateChirp(w http.ResponseWriter, r *http.Reques
 		respondWithError(w, 400, "Chirp is too long")
 		return
 	}
-	respondWithJSON(w, 200, returnVals{Valid: true})
+
+	profane := []string{"kerfuffle", "sharbert", "fornax"}
+
+	splitedWords := strings.Split(params.Body, " ")
+	for index, word := range splitedWords {
+		for _, j := range profane {
+			if strings.ToLower(word) == j {
+				splitedWords[index] = "****"
+				break
+			}
+		}
+	}
+	cleanedText := strings.Join(splitedWords, " ")
+
+	respondWithJSON(w, 200, returnVals{CleanedBody: cleanedText})
 }
 
 func respondWithError(w http.ResponseWriter, code int, msg string) {
@@ -82,13 +97,6 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	w.Write(dat)
 }
 
-// handleHealth handles the /api/healthz endpoint.
-// func (cfg *apiConfig) handleHealth(w http.ResponseWriter, r *http.Request) {
-// 	w.Header().Set("Content-Type", "text/plain; charset=utf-8") // normal header
-// 	w.WriteHeader(http.StatusOK)
-// 	w.Write([]byte("OK"))
-// }
-
 func main() {
 
 	const filepathRoot = "."
@@ -100,14 +108,10 @@ func main() {
 	mux.Handle("/app/", apiCfg.middlewareMetricsInc(
 		http.StripPrefix("/app/", http.FileServer(http.Dir(filepathRoot))),
 	))
-	//mux.Handle("/app/assets/", apiCfg.middlewareMetricsInc(
-	//	http.StripPrefix("/app/assets", http.FileServer(http.Dir("./assets"))),
-	//))
 
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
 	mux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
 	mux.HandleFunc("POST /api/validate_chirp", apiCfg.handlerValidateChirp)
-	// mux.HandleFunc("GET /healthz", apiCfg.handleHealth)
 
 	srv := &http.Server{
 		Addr:    ":" + port,
