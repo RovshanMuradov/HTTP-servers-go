@@ -1,3 +1,5 @@
 .idea/
 out
 .env
+HTTP-servers-go
+go.sum
