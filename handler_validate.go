@@ -91,6 +91,30 @@ func (cfg *apiConfig) handlerChirpsGet(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func (cfg *apiConfig) handlerChirpGetId(w http.ResponseWriter, r *http.Request) {
+	chirpID := r.PathValue("chirpID")
+
+	chirpUUID, err := uuid.Parse(chirpID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Invalid chirp ID", err)
+		return
+	}
+
+	chirps, err := cfg.db.GetChirpByID(r.Context(), chirpUUID)
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, "Couldn't get chirp ID", err)
+		return
+	}
+
+	respondWithJSON(w, 200, Chirp{
+		ID:        chirps.ID,
+		CreatedAt: chirps.CreatedAt,
+		UpdatedAt: chirps.UpdatedAt,
+		Body:      chirps.Body,
+		UserID:    chirps.UserID,
+	})
+}
+
 func getCleanedBody(body string, badWords map[string]struct{}) string {
 	words := strings.Split(body, " ")
 	for i, word := range words {
