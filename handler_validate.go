@@ -10,40 +10,6 @@ import (
 	"github.com/rovshanmuradov/HTTP-servers-go/internal/database"
 )
 
-// func handlerChirpsValidate(w http.ResponseWriter, r *http.Request) {
-// 	type parameters struct {
-// 		Body string `json:"body"`
-// 	}
-// 	type returnVals struct {
-// 		CleanedBody string `json:"cleaned_body"`
-// 	}
-
-// 	decoder := json.NewDecoder(r.Body)
-// 	params := parameters{}
-// 	err := decoder.Decode(&params)
-// 	if err != nil {
-// 		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
-// 		return
-// 	}
-
-// 	const maxChirpLength = 140
-// 	if len(params.Body) > maxChirpLength {
-// 		respondWithError(w, http.StatusBadRequest, "Chirp is too long", nil)
-// 		return
-// 	}
-
-// 	badWords := map[string]struct{}{
-// 		"kerfuffle": {},
-// 		"sharbert":  {},
-// 		"fornax":    {},
-// 	}
-// 	cleaned := getCleanedBody(params.Body, badWords)
-
-// 	respondWithJSON(w, http.StatusOK, returnVals{
-// 		CleanedBody: cleaned,
-// 	})
-// }
-
 type Chirp struct {
 	ID        uuid.UUID `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
@@ -101,6 +67,27 @@ func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request
 			UserID:    chirp.UserID,
 		},
 	})
+
+}
+
+func (cfg *apiConfig) handlerChirpsGet(w http.ResponseWriter, r *http.Request) {
+
+	chirps, err := cfg.db.GetAllChirps(r.Context())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't get all chirps", err)
+		return
+	}
+	result := make([]Chirp, len(chirps))
+	for i, dbChirp := range chirps {
+		result[i] = Chirp{
+			ID:        dbChirp.ID,
+			CreatedAt: dbChirp.CreatedAt,
+			UpdatedAt: dbChirp.UpdatedAt,
+			Body:      dbChirp.Body,
+			UserID:    dbChirp.UserID,
+		}
+	}
+	respondWithJSON(w, 200, result)
 
 }
 
