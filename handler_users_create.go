@@ -15,6 +15,7 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
+	Token     string    `json:"token"`
 }
 
 func (cfg *apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
@@ -57,8 +58,9 @@ func (cfg *apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request)
 
 func (cfg *apiConfig) handlerUsersLogin(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Password string `json:"password"`
-		Email    string `json:"email"`
+		Password           string `json:"password"`
+		Email              string `json:"email"`
+		Expires_in_seconds *int   `json:"expires_in_seconds"`
 	}
 	type response struct {
 		User
@@ -83,12 +85,29 @@ func (cfg *apiConfig) handlerUsersLogin(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	expiresIn := time.Hour
+	if params.Expires_in_seconds != nil {
+		requested := time.Duration(*params.Expires_in_seconds) * time.Second
+
+		if requested > time.Hour {
+			expiresIn = time.Hour
+		} else {
+			expiresIn = requested
+		}
+	}
+	createJWT, err := auth.MakeJWT(user.ID, cfg.jwtSecret, time.Duration(expiresIn))
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Couldn't create jwt", nil)
+		return
+	}
+
 	respondWithJSON(w, http.StatusOK, response{
 		User: User{
 			ID:        user.ID,
 			CreatedAt: user.CreatedAt,
 			UpdatedAt: user.UpdatedAt,
 			Email:     user.Email,
+			Token:     createJWT,
 		},
 	})
 
