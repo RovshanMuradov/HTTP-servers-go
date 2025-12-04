@@ -226,3 +226,53 @@ func (cfg *apiConfig) handlerUsersUpdate(w http.ResponseWriter, r *http.Request)
 		},
 	})
 }
+
+func (cfg *apiConfig) handlerChirpDelete(w http.ResponseWriter, r *http.Request) {
+	// 1. Аутентификация
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Invalid token", nil)
+		return
+	}
+
+	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Invalid token", err)
+		return
+	}
+
+	// 2. Parse chirpID из URL
+	chirpID := r.PathValue("chirpID")
+	chirpUUID, err := uuid.Parse(chirpID)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid chirp ID", err)
+		return
+	}
+
+	// 3. Проверить существование и владельца
+	chirp, err := cfg.db.GetChirpByID(r.Context(), chirpUUID)
+	if err == sql.ErrNoRows {
+		respondWithError(w, http.StatusNotFound, "Chirp not found", nil)
+		return
+	}
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Database error", err)
+		return
+	}
+
+	// 4. Проверить владельца
+	if chirp.UserID != userID {
+		respondWithError(w, http.StatusForbidden, "You don't own this chirp", nil)
+		return
+	}
+
+	// 5. Удалить
+	err = cfg.db.DeleteChirp(r.Context(), chirpUUID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't delete chirp", err)
+		return
+	}
+
+	// 6. Успех
+	w.WriteHeader(http.StatusNoContent)
+}
