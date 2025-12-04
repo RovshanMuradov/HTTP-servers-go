@@ -281,6 +281,16 @@ func (cfg *apiConfig) handlerChirpDelete(w http.ResponseWriter, r *http.Request)
 }
 
 func (cfg *apiConfig) handlerUpgradeUsersToChirpyRed(w http.ResponseWriter, r *http.Request) {
+
+	apiKey, err := auth.GetAPIKey(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Invalid API key", nil)
+		return
+	}
+	if apiKey != cfg.polkaKey {
+		respondWithError(w, http.StatusUnauthorized, "Invalid API key", nil)
+		return
+	}
 	type Data struct {
 		UserID uuid.UUID `json:"user_id"`
 	}
@@ -291,9 +301,9 @@ func (cfg *apiConfig) handlerUpgradeUsersToChirpyRed(w http.ResponseWriter, r *h
 
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
-	err := decoder.Decode(&params)
+	err = decoder.Decode(&params)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
+		respondWithError(w, http.StatusBadRequest, "Invalid JSON", err)
 		return
 	}
 
@@ -308,7 +318,7 @@ func (cfg *apiConfig) handlerUpgradeUsersToChirpyRed(w http.ResponseWriter, r *h
 		return
 	}
 	if err != nil {
-		respondWithError(w, http.StatusNotFound, "Database error", nil)
+		respondWithError(w, http.StatusInternalServerError, "Database error", nil)
 		return
 	}
 
