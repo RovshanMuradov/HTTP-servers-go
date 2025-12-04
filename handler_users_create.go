@@ -18,6 +18,7 @@ type User struct {
 	Email         string    `json:"email"`
 	Token         string    `json:"token"`
 	Refresh_token string    `json:"refresh_token"`
+	IsChirpyRed   bool      `json:"is_chirpy_red"`
 }
 
 func (cfg *apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
@@ -50,10 +51,11 @@ func (cfg *apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request)
 
 	respondWithJSON(w, http.StatusCreated, response{
 		User: User{
-			ID:        user.ID,
-			CreatedAt: user.CreatedAt,
-			UpdatedAt: user.UpdatedAt,
-			Email:     user.Email,
+			ID:          user.ID,
+			CreatedAt:   user.CreatedAt,
+			UpdatedAt:   user.UpdatedAt,
+			Email:       user.Email,
+			IsChirpyRed: user.IsChirpyRed,
 		},
 	})
 }
@@ -117,6 +119,7 @@ func (cfg *apiConfig) handlerUsersLogin(w http.ResponseWriter, r *http.Request) 
 			Email:         user.Email,
 			Token:         createJWT,
 			Refresh_token: createRefreshToken.Token,
+			IsChirpyRed:   user.IsChirpyRed,
 		},
 	})
 
@@ -274,5 +277,40 @@ func (cfg *apiConfig) handlerChirpDelete(w http.ResponseWriter, r *http.Request)
 	}
 
 	// 6. Успех
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (cfg *apiConfig) handlerUpgradeUsersToChirpyRed(w http.ResponseWriter, r *http.Request) {
+	type Data struct {
+		UserID uuid.UUID `json:"user_id"`
+	}
+	type parameters struct {
+		Event string `json:"event"`
+		Data  Data   `json:"data"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	params := parameters{}
+	err := decoder.Decode(&params)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
+		return
+	}
+
+	if params.Event != "user.upgraded" {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	_, err = cfg.db.UpgradeUserToChirpyRed(r.Context(), params.Data.UserID)
+	if err == sql.ErrNoRows {
+		respondWithError(w, http.StatusNotFound, "User not found", nil)
+		return
+	}
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, "Database error", nil)
+		return
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
