@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -83,12 +84,34 @@ func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request
 }
 
 func (cfg *apiConfig) handlerChirpsGet(w http.ResponseWriter, r *http.Request) {
+	authorID := r.URL.Query().Get("author_id")
+	sortOrder := r.URL.Query().Get("sort")
 
-	chirps, err := cfg.db.GetAllChirps(r.Context())
+	// Default sort order
+	if sortOrder == "" {
+		sortOrder = "asc"
+	}
+
+	var chirps []database.Chirp
+	var err error
+
+	if authorID != "" {
+		authorUUID, err := uuid.Parse(authorID)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "Invalid author_id", err)
+			return
+		}
+		chirps, err = cfg.db.GetChirpsByAuthor(r.Context(), authorUUID)
+	} else {
+		chirps, err = cfg.db.GetAllChirps(r.Context())
+	}
+
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Couldn't get all chirps", err)
+		respondWithError(w, http.StatusInternalServerError, "Couldn't get chirps", err)
 		return
 	}
+
+	// Convert to response format
 	result := make([]Chirp, len(chirps))
 	for i, dbChirp := range chirps {
 		result[i] = Chirp{
@@ -99,8 +122,16 @@ func (cfg *apiConfig) handlerChirpsGet(w http.ResponseWriter, r *http.Request) {
 			UserID:    dbChirp.UserID,
 		}
 	}
-	respondWithJSON(w, 200, result)
 
+	// Sort in-memory
+	sort.Slice(result, func(i, j int) bool {
+		if sortOrder == "desc" {
+			return result[i].CreatedAt.After(result[j].CreatedAt)
+		}
+		return result[i].CreatedAt.Before(result[j].CreatedAt)
+	})
+
+	respondWithJSON(w, 200, result)
 }
 
 func (cfg *apiConfig) handlerChirpGetId(w http.ResponseWriter, r *http.Request) {
@@ -138,4 +169,3 @@ func getCleanedBody(body string, badWords map[string]struct{}) string {
 	cleaned := strings.Join(words, " ")
 	return cleaned
 }
-
